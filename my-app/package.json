@@ -9,12 +9,17 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@react-three/drei": "^10.6.1",
+    "@react-three/fiber": "^9.3.0",
     "date-fns": "^4.1.0",
     "firebase": "^12.0.0",
     "formik": "^2.4.6",
+    "gsap": "^3.13.0",
     "next": "15.4.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-typed": "^2.0.12",
+    "three": "^0.178.0",
     "yup": "^1.6.1"
   },
   "devDependencies": {
