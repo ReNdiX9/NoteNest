@@ -38,8 +38,8 @@ function TypingText() {
 
 export default function Home() {
   return (
-    <div className="h-screen flex flex-col justify-center items-center bg-black text-white p-10">
-      <h1 className="font-bold text-4xl mb-3">Welcome to NoteNest</h1>
+    <div className="h-screen flex flex-col justify-center items-center  p-10">
+      <h1 className="font-bold text-5xl mb-3">Welcome to NoteNest</h1>
       <TypingText />
       <div className="w-80 h-80 ">
         <Canvas camera={{ position: [0, 0, 1.5] }}>
@@ -50,7 +50,6 @@ export default function Home() {
         </Canvas>
       </div>
 
-      {/* Buttons */}
       <div className="flex items-center justify-center space-x-8">
         <button
           className="bg-gradient-to-r from-[#2ebf91] to-[#4286f4] text-white 
