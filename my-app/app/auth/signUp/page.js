@@ -10,6 +10,8 @@ import { useState } from "react";
 import { auth } from "../../../lib/firebase";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { Toaster, toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { updateProfile } from "firebase/auth";
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])(?!.*\s).{8,16}$/;
 
@@ -45,17 +47,23 @@ export default function SignUp() {
     resolver: yupResolver(formSchema),
     mode: "onBlur",
   });
+  const router = useRouter();
 
   const onSubmit = async (data) => {
     console.log("Register data:", data);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       console.log(" User created:", userCredential.user);
+      // Set the display name
+      await updateProfile(auth.currentUser, {
+        displayName: data.username,
+      });
       toast.success("Account created!");
       setTimeout(() => {
         reset();
         setPasswordValue("");
         setShowChecklist(false);
+        router.push("/notes");
       }, 1000);
     } catch (error) {
       console.error(" Firebase Error:", error.message);
@@ -69,6 +77,9 @@ export default function SignUp() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       toast.success(`Welcome ${user.displayName || "back"}!`);
+      setTimeout(() => {
+        router.push("/notes");
+      }, 1000);
     } catch (error) {
       toast.error(error.message);
     }
@@ -77,7 +88,7 @@ export default function SignUp() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 ">
       <Toaster position="top-center" reverseOrder={false} />
-      <div className="w-full max-w-md rounded-2xl p-6 shadow-xl/30 border-1 border-gray-400">
+      <div className="w-full max-w-md rounded-2xl p-6 shadow-xl/30 border-1 border-slate-400">
         <h1 className="text-2xl font-bold mb-6 text-center">Create your NoteNest account</h1>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8 shadow-lg ">
@@ -196,7 +207,7 @@ export default function SignUp() {
             onClick={handleGoogleAuth}
             className="w-full p-2 border border-slate-300 rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-105  hover:border-slate-500 hover:shadow"
           >
-            <FcGoogle className="w-5 h-5" />
+            <FcGoogle className="w-6 h-6" />
             Continue with Google
           </button>
         </div>
