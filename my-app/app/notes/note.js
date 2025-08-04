@@ -1,8 +1,14 @@
-export default function Note({ header, message }) {
+export default function Note({ header, message, color, createdAt }) {
   return (
-    <div className="size-28 border rounded-lg p-4 sm:size-32 md:size-48 lg:size-56">
-      <header>{header}</header>
-      <p>{message}</p>
+    <div
+      style={{ backgroundColor: color }}
+      className="rounded-xl shadow-lg p-4 min-h-[12rem] flex flex-col justify-between transition-transform hover:scale-[1.02]"
+    >
+      <div>
+        <h2 className="font-bold text-lg mb-2 break-words text-center">{header}</h2>
+        <p className="text-sm break-words">{message}</p>
+      </div>
+      {createdAt && <p className="text-xs text-right text-gray-600 mt-4 italic">{createdAt}</p>}
     </div>
   );
 }
