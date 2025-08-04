@@ -73,7 +73,7 @@ export default function NotesPage() {
         </div>
 
         {/* Desktop actions */}
-        <div className="hidden sm:flex gap-3 items-center">
+        <div className="hidden sm:flex gap-8 items-center">
           <button
             onClick={() => setOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold shadow hover:shadow-md transition cursor-pointer"
