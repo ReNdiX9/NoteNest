@@ -1,3 +1,4 @@
+//page.js
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import Note from "./note";
 import NoteForm from "./noteForm";
 import { FiPlus, FiMenu, FiX } from "react-icons/fi";
 import { format } from "date-fns";
+import { ColorPicker } from "@wellbees/color-picker-input";
 
 export default function NotesPage() {
   const router = useRouter();
@@ -18,6 +20,10 @@ export default function NotesPage() {
   const [notes, setNotes] = useState([]);
   const [sortAsc, setSortAsc] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [selectedNoteIndex, setSelectedNoteIndex] = useState(null);
+  const [tempColor, setTempColor] = useState("#ffffff");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -36,13 +42,10 @@ export default function NotesPage() {
     router.push("/auth/signIn");
   };
 
-  if (loading) {
-    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
-  }
-
   const handleAddNote = (noteData) => {
     const createdAt = format(new Date(), "yyyy-MM-dd");
     const newNote = { ...noteData, createdAt };
+    console.log("Saving note:", noteData);
     setNotes((prevNotes) => {
       const updated = [...prevNotes, newNote];
       return sortAsc
@@ -60,19 +63,49 @@ export default function NotesPage() {
     setSortAsc(!sortAsc);
   };
 
+  const searchNote = () => {
+    return notes.filter((note) => note.header.toLowerCase().includes(searchTerm.toLowerCase()));
+  };
+
+  const openColorPicker = (index) => {
+    if (notes[index]) {
+      setSelectedNoteIndex(index);
+      setTempColor(notes[index].color || "#ffffff");
+      setColorPickerOpen(true);
+    }
+  };
+
+  const confirmColorChange = () => {
+    if (selectedNoteIndex !== null) {
+      const updated = [...notes];
+      updated[selectedNoteIndex].color = tempColor;
+      setNotes(updated);
+      setColorPickerOpen(false);
+      setTempColor("#ffffff");
+      setSelectedNoteIndex(null);
+    }
+  };
+
+  if (loading) {
+    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+  }
+  const toggleTodoDone = (noteIndex, todoIndex) => {
+    const updatedNotes = [...notes];
+    updatedNotes[noteIndex].todos[todoIndex].done = !updatedNotes[noteIndex].todos[todoIndex].done;
+    setNotes(updatedNotes);
+  };
+
   return (
     <div className="min-h-screen min-w-screen">
       <header className="flex justify-between items-center border-b border-slate-200 shadow-sm px-4 py-4 bg-white">
         <h1 className="text-2xl font-extrabold tracking-tight text-gray-800">NoteNest</h1>
 
-        {/* Mobile menu toggle */}
         <div className="sm:hidden">
           <button onClick={() => setMenuOpen(!menuOpen)} className="text-2xl text-gray-700">
             {menuOpen ? <FiX /> : <FiMenu />}
           </button>
         </div>
 
-        {/* Desktop actions */}
         <div className="hidden sm:flex gap-10 items-center">
           <button
             onClick={() => setOpen(true)}
@@ -87,9 +120,15 @@ export default function NotesPage() {
           >
             Sort {sortAsc ? "Z → A" : "A → Z"}
           </button>
+          <input
+            type="search"
+            placeholder="Search notes..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
+          />
         </div>
 
-        {/* Username + logout */}
         <div className="relative hidden sm:block">
           <p
             id="username"
@@ -110,7 +149,6 @@ export default function NotesPage() {
         </div>
       </header>
 
-      {/* Mobile menu dropdown */}
       {menuOpen && (
         <div className="flex flex-col sm:hidden px-4 py-2 gap-2 border-b bg-white shadow">
           <button
@@ -126,6 +164,13 @@ export default function NotesPage() {
           >
             Sort {sortAsc ? "Z → A" : "A → Z"}
           </button>
+          <input
+            type="search"
+            placeholder="Search notes..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
+          />
           <button
             onClick={handleLogout}
             className="px-4 py-2 bg-red-500 text-white font-medium rounded-lg shadow hover:bg-red-600 transition"
@@ -136,11 +181,69 @@ export default function NotesPage() {
       )}
 
       <main className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {notes.map((n, i) => (
-          <Note key={i} header={n.header} message={n.message} color={n.color} createdAt={n.createdAt} />
-        ))}
+        {searchNote().length === 0 ? (
+          <p className="col-span-full text-center text-gray-500">No notes found.</p>
+        ) : (
+          searchNote().map((n, i) => (
+            <Note
+              key={i}
+              header={n.header}
+              message={n.message}
+              color={n.color}
+              todos={n.todos}
+              createdAt={n.createdAt}
+              onDelete={() => {
+                const updatedNotes = notes.filter((_, index) => index !== i);
+                setNotes(updatedNotes);
+              }}
+              onColorChange={() => openColorPicker(i)}
+              onToggleTodo={(todoIdx) => toggleTodoDone(i, todoIdx)} // ✅ new prop
+            />
+          ))
+        )}
         {open && <NoteForm onClose={() => setOpen(false)} onSave={handleAddNote} />}
       </main>
+      {colorPickerOpen && selectedNoteIndex !== null && (
+        <div
+          onClick={() => setColorPickerOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-purple-500/30 via-blue-400/30 to-cyan-300/30 backdrop-blur-sm animate-fade-in px-4"
+        >
+          {/* Prevent close on modal click */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full max-w-xs rounded-xl p-5 shadow-xl animate-scale-in"
+          >
+            <h3 className="text-lg font-bold mb-3 text-center text-gray-800">Edit Note Color</h3>
+
+            <div className="flex justify-center mb-4">
+              <ColorPicker
+                inputType="mui"
+                value={tempColor}
+                onChange={(newColor) => setTempColor(newColor)}
+                size="small"
+                colorShowType="circle"
+                className="shadow-md"
+                label="Pick a color"
+              />
+            </div>
+
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={() => setColorPickerOpen(false)}
+                className="w-1/2 py-2 bg-red-500 hover:bg-red-600 text-white rounded transition font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmColorChange}
+                className="w-1/2 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition font-semibold"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
