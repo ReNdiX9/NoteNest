@@ -7,7 +7,7 @@ export default function Note({ header, message, color, createdAt, todos = [], on
       style={{ backgroundColor: color }}
       className="group relative border border-slate-300 rounded-xl shadow-lg p-4 min-h-[12rem] flex flex-col justify-between transition-transform hover:scale-[1.02] hover:border-slate-400"
     >
-      <div className="absolute bottom-2 right-30 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity sm:opacity-100">
+      <div className="absolute bottom-2 left-5 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity ">
         <button
           title="Delete"
           onClick={onDelete}
@@ -44,7 +44,11 @@ export default function Note({ header, message, color, createdAt, todos = [], on
         )}
       </div>
 
-      {createdAt && <p className="text-xs text-right text-gray-600 mt-4 italic">{createdAt}</p>}
+      {createdAt && (
+        <p className="text-xs text-right text-gray-600 mt-4 italic">
+          {typeof createdAt === "string" ? createdAt : new Date(createdAt.seconds * 1000).toLocaleString()}
+        </p>
+      )}
     </div>
   );
 }

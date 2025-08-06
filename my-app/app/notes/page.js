@@ -8,8 +8,8 @@ import { useRouter } from "next/navigation";
 import Note from "./note";
 import NoteForm from "./noteForm";
 import { FiPlus, FiMenu, FiX } from "react-icons/fi";
-import { format } from "date-fns";
 import { ColorPicker } from "@wellbees/color-picker-input";
+import { addNoteToDB, deleteNoteFromDB, updateNoteInDB, getUserNotes } from "../../lib/firebaseNotes";
 
 export default function NotesPage() {
   const router = useRouter();
@@ -26,11 +26,13 @@ export default function NotesPage() {
   const [tempColor, setTempColor] = useState("#ffffff");
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         router.push("/auth/signIn");
       } else {
         setCurrentUser(user);
+        const userNotes = await getUserNotes(user.uid);
+        setNotes(userNotes);
         setLoading(false);
       }
     });
@@ -42,17 +44,28 @@ export default function NotesPage() {
     router.push("/auth/signIn");
   };
 
-  const handleAddNote = (noteData) => {
-    const createdAt = format(new Date(), "yyyy-MM-dd");
-    const newNote = { ...noteData, createdAt };
-    console.log("Saving note:", noteData);
-    setNotes((prevNotes) => {
-      const updated = [...prevNotes, newNote];
-      return sortAsc
-        ? updated.sort((a, b) => a.header.localeCompare(b.header))
-        : updated.sort((a, b) => b.header.localeCompare(a.header));
-    });
-    setOpen(false);
+  const handleAddNote = async (noteData) => {
+    try {
+      const savedNote = await addNoteToDB(noteData, currentUser.uid);
+      setNotes((prevNotes) => {
+        const updated = [...prevNotes, savedNote];
+        return sortAsc
+          ? updated.sort((a, b) => a.header.localeCompare(b.header))
+          : updated.sort((a, b) => b.header.localeCompare(a.header));
+      });
+      setOpen(false);
+    } catch (err) {
+      console.error("Error saving to Firestore:", err);
+    }
+  };
+
+  const handleDeleteNote = async (noteId, index) => {
+    try {
+      await deleteNoteFromDB(noteId);
+      setNotes((prev) => prev.filter((_, i) => i !== index));
+    } catch (err) {
+      console.error("Failed to delete note:", err);
+    }
   };
 
   const toggleSort = () => {
@@ -75,37 +88,55 @@ export default function NotesPage() {
     }
   };
 
-  const confirmColorChange = () => {
+  const confirmColorChange = async () => {
     if (selectedNoteIndex !== null) {
       const updated = [...notes];
       updated[selectedNoteIndex].color = tempColor;
       setNotes(updated);
       setColorPickerOpen(false);
+
+      const noteId = updated[selectedNoteIndex].id;
+      if (noteId) {
+        try {
+          await updateNoteInDB(noteId, { color: tempColor });
+        } catch (err) {
+          console.error("Failed to update color:", err);
+        }
+      }
+
       setTempColor("#ffffff");
       setSelectedNoteIndex(null);
+    }
+  };
+
+  const toggleTodoDone = async (noteIndex, todoIndex) => {
+    const updatedNotes = [...notes];
+    updatedNotes[noteIndex].todos[todoIndex].done = !updatedNotes[noteIndex].todos[todoIndex].done;
+    setNotes(updatedNotes);
+
+    const noteId = updatedNotes[noteIndex].id;
+    if (noteId) {
+      try {
+        await updateNoteInDB(noteId, { todos: updatedNotes[noteIndex].todos });
+      } catch (err) {
+        console.error("Failed to update todo:", err);
+      }
     }
   };
 
   if (loading) {
     return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
   }
-  const toggleTodoDone = (noteIndex, todoIndex) => {
-    const updatedNotes = [...notes];
-    updatedNotes[noteIndex].todos[todoIndex].done = !updatedNotes[noteIndex].todos[todoIndex].done;
-    setNotes(updatedNotes);
-  };
 
   return (
     <div className="min-h-screen min-w-screen">
       <header className="flex justify-between items-center border-b border-slate-200 shadow-sm px-4 py-4 bg-white">
         <h1 className="text-2xl font-extrabold tracking-tight text-gray-800">NoteNest</h1>
-
         <div className="sm:hidden">
           <button onClick={() => setMenuOpen(!menuOpen)} className="text-2xl text-gray-700">
             {menuOpen ? <FiX /> : <FiMenu />}
           </button>
         </div>
-
         <div className="hidden sm:flex gap-10 items-center">
           <button
             onClick={() => setOpen(true)}
@@ -125,10 +156,9 @@ export default function NotesPage() {
             placeholder="Search notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
+            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring focus:ring-slate-400"
           />
         </div>
-
         <div className="relative hidden sm:block">
           <p
             id="username"
@@ -137,7 +167,6 @@ export default function NotesPage() {
           >
             {currentUser.displayName || currentUser.email}
           </p>
-
           {logOut && (
             <button
               onClick={handleLogout}
@@ -192,29 +221,25 @@ export default function NotesPage() {
               color={n.color}
               todos={n.todos}
               createdAt={n.createdAt}
-              onDelete={() => {
-                const updatedNotes = notes.filter((_, index) => index !== i);
-                setNotes(updatedNotes);
-              }}
+              onDelete={() => handleDeleteNote(n.id, i)}
               onColorChange={() => openColorPicker(i)}
-              onToggleTodo={(todoIdx) => toggleTodoDone(i, todoIdx)} // ✅ new prop
+              onToggleTodo={(todoIdx) => toggleTodoDone(i, todoIdx)}
             />
           ))
         )}
         {open && <NoteForm onClose={() => setOpen(false)} onSave={handleAddNote} />}
       </main>
+
       {colorPickerOpen && selectedNoteIndex !== null && (
         <div
           onClick={() => setColorPickerOpen(false)}
           className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-purple-500/30 via-blue-400/30 to-cyan-300/30 backdrop-blur-sm animate-fade-in px-4"
         >
-          {/* Prevent close on modal click */}
           <div
             onClick={(e) => e.stopPropagation()}
             className="bg-white w-full max-w-xs rounded-xl p-5 shadow-xl animate-scale-in"
           >
             <h3 className="text-lg font-bold mb-3 text-center text-gray-800">Edit Note Color</h3>
-
             <div className="flex justify-center mb-4">
               <ColorPicker
                 inputType="mui"
@@ -226,7 +251,6 @@ export default function NotesPage() {
                 label="Pick a color"
               />
             </div>
-
             <div className="flex justify-center gap-4">
               <button
                 onClick={() => setColorPickerOpen(false)}
